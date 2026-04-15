@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+*.log
+*.pdf
+*.html
+*.json
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.streamlit/
+.DS_Store
+Thumbs.db
