@@ -9,7 +9,7 @@ from backend.ai_engine import explain_findings
 from backend.analyzer import AnalyzerError, run_mythril, run_slither
 from backend.models import AnalysisReport, AnalysisTarget
 from backend.parser import parse_mythril_output, parse_slither_output
-from backend.report import build_summary
+from backend.report import build_severity_breakdown, build_summary
 
 
 app = FastAPI(title="AI Smart Contract Risk Explainer")
@@ -21,7 +21,8 @@ def _validate_source_code(source_code: str) -> None:
     if not stripped:
         raise AnalyzerError("Provide Solidity source code or upload a .sol file.")
 
-    if "pragma solidity" in stripped.lower() or "contract " in stripped.lower() or "interface " in stripped.lower() or "library " in stripped.lower():
+    lowered = stripped.lower()
+    if "pragma solidity" in lowered or "contract " in lowered or "interface " in lowered or "library " in lowered:
         return
 
     try:
@@ -43,7 +44,7 @@ def analyze_contract(target: AnalysisTarget, use_mythril: bool = False) -> Analy
     _validate_source_code(target.source_code)
 
     slither_payload, tool_status = run_slither(target)
-    findings = parse_slither_output(slither_payload)
+    findings = parse_slither_output(slither_payload, target.source_code, target.filename)
 
     if use_mythril:
         mythril_payload, mythril_status = run_mythril(target)
@@ -52,12 +53,14 @@ def analyze_contract(target: AnalysisTarget, use_mythril: bool = False) -> Analy
             findings.extend(parse_mythril_output(mythril_payload))
 
     explained = explain_findings(findings)
+    severity_breakdown = build_severity_breakdown(explained)
     report = AnalysisReport(
         contract_name=target.contract_name,
         source=target.source_code,
         finding_count=len(explained),
         findings=explained,
         summary="",
+        severity_breakdown=severity_breakdown,
         tool_status=tool_status,
     )
     report.summary = build_summary(report)

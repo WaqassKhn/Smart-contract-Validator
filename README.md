@@ -1,36 +1,20 @@
-# Smart Contract Validator
+# AI Smart Contract Risk Explainer
 
-Smart Contract Validator is an AI-assisted Solidity security analysis project. It scans smart contracts with static analysis tools, converts the raw findings into structured data, and explains those findings in plain English through a FastAPI backend and a Streamlit frontend.
+AI Smart Contract Risk Explainer is a Python-based smart contract security project. It takes Solidity source code, runs static analysis with Slither, optionally runs Mythril, normalizes the findings, and generates plain-English explanations with impact and remediation guidance.
 
-This repository is designed for academic demos, project submissions, and beginner-friendly smart contract security walkthroughs.
+The project is built for a blockchain and cyber security demo. Its value is not only detection, but also turning analyzer output into a readable report that is easier to understand and present.
 
-The current prototype supports:
+## What the project does
 
-- Solidity source upload or pasted source input
-- Slither as the primary analyzer
-- Optional Mythril analysis
-- Groq or OpenAI powered explanations with a rule-based fallback
-- JSON, HTML, and PDF report generation
-- Sample vulnerable and safer Solidity contracts for demonstration
-
-## What this project does
-
-- Accepts Solidity contracts through file upload or pasted code
-- Runs `Slither` as the main static analyzer
-- Optionally runs `Mythril` as a deeper secondary analyzer
-- Normalizes analyzer output into structured vulnerability findings
-- Explains findings in plain English with exploit scenario, impact, and fix guidance
-- Generates JSON, HTML, and PDF-style reports
-- Provides a Streamlit demo UI and a FastAPI backend
-- Supports Groq as the preferred LLM provider and OpenAI as an optional fallback
-
-## What this project can do
-
-- Detect common smart contract risks reported by static tools
-- Turn raw scanner output into a structured report format
-- Explain technical vulnerabilities in simpler language
-- Support class demos with sample vulnerable contracts
-- Export reports for submission or presentation
+- Accepts Solidity contracts from file upload or pasted source
+- Runs Slither as the primary analyzer
+- Optionally runs Mythril as a fallback analyzer
+- Filters low-signal analyzer noise from the main report
+- Normalizes findings into readable categories and severities
+- Extracts relevant code snippets around flagged lines
+- Explains findings using Gemini, Groq, OpenAI, or built-in rule-based logic
+- Generates JSON, HTML, and PDF reports
+- Provides a Streamlit UI and a FastAPI backend
 
 ## Project structure
 
@@ -50,7 +34,12 @@ project/
 │   ├── access_control_vulnerable.sol
 │   ├── integer_overflow_legacy.sol
 │   ├── reentrancy_vulnerable.sol
+│   ├── safe_access_vault.sol
+│   ├── safe_time_lock.sol
 │   ├── safe_vault.sol
+│   ├── selfdestruct_vulnerable.sol
+│   ├── timestamp_lottery_vulnerable.sol
+│   ├── tx_origin_vulnerable.sol
 │   └── sample_report.json
 ├── .gitignore
 ├── requirements.txt
@@ -60,19 +49,19 @@ project/
 ## Architecture
 
 ```text
-[Frontend UI / API Client]
+[Streamlit UI / API Client]
             |
             v
-       [Backend API]
+       [FastAPI Backend]
             |
             v
- [Static Analyzer Layer]
+ [Slither / Mythril Layer]
             |
             v
           [Parser]
             |
             v
- [Groq / OpenAI / Rules]
+ [Gemini / Groq / OpenAI / Rules]
             |
             v
    [JSON / HTML / PDF Report]
@@ -80,116 +69,105 @@ project/
 
 ## Processing pipeline
 
-1. User uploads a Solidity file or pastes source code.
-2. Backend stores the contract in a temporary file.
-3. Slither scans the contract and returns JSON output.
-4. Parser converts the raw tool output into normalized findings.
-5. AI layer generates explanation, exploit scenario, impact, and fix recommendation.
-6. Report layer prepares JSON, HTML, and PDF exports.
+1. User uploads a `.sol` file or pastes Solidity source.
+2. Backend validates the input and writes it to a temporary file.
+3. Slither scans the contract and returns raw JSON findings.
+4. Parser removes low-value informational noise and normalizes the rest.
+5. AI layer explains each issue with exploit scenario, impact, and fix guidance.
+6. Report layer produces clean output for UI and downloads.
 
-## Step-by-step setup and run guide
+## Setup on a fresh system
 
-These steps are written for Windows PowerShell because that is the environment used for this project. A short macOS / Linux note is included later.
+### 1. Get the project
 
-### 1. Open the project folder
-
-If using Git:
-
-```powershell
+```bash
 git clone <your-repository-url>
-Set-Location ETHBlockchain
+cd ETHBlockchain
 ```
 
-If you already have the folder:
-
-```powershell
-Set-Location "I:\SeM_6\CS&BC\ETHBlockchain"
-```
-
-### 2. Check Python
+### 2. Install Python
 
 Use Python `3.11` or newer.
 
-```powershell
+```bash
 python --version
 ```
 
-If this command fails, install Python first and reopen PowerShell.
+### 3. Create a virtual environment
 
-### 3. Create the virtual environment
+Windows PowerShell:
 
 ```powershell
 python -m venv .venv
+.venv\Scripts\Activate.ps1
 ```
 
-### 4. Activate the virtual environment
+macOS / Linux:
 
-```powershell
-.\.venv\Scripts\Activate.ps1
+```bash
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-After activation, your prompt should show `(.venv)`.
+### 4. Install dependencies
 
-### 5. Install the Python dependencies
-
-```powershell
-python -m pip install -r requirements.txt
-python -m pip install slither-analyzer
+```bash
+pip install -r requirements.txt
 ```
 
-Optional:
+### 5. Install Slither
 
-```powershell
-python -m pip install mythril
-```
-
-### 6. Make sure the venv tools are on `PATH`
-
-This project depends on command-line tools such as `slither` and `solc`. In this repository they are typically installed under `.venv\Scripts`, so add that folder to your current PowerShell session:
-
-```powershell
-$env:Path = "$PWD\.venv\Scripts;$env:Path"
-```
-
-Check that PowerShell can now find the tools:
-
-```powershell
+```bash
+pip install slither-analyzer
 slither --version
-solc --version
 ```
 
-If `slither --version` works but `solc --version` fails, continue to the next step.
+### 6. Optional: install Mythril
 
-### 7. Install a Solidity compiler version for your contracts
-
-Many sample and test contracts in this project use:
-
-```solidity
-pragma solidity ^0.8.20;
+```bash
+pip install mythril
+myth version
 ```
 
-Install and select that compiler version:
+### 7. Configure Gemini, Groq, or OpenAI
 
-```powershell
-python -m pip install solc-select
-solc-select install 0.8.20
-solc-select use 0.8.20
-solc --version
-```
+Supported modes:
 
-If you analyze contracts with a different pragma, install a matching compiler version instead.
-
-### 8. Optional: configure the AI provider
-
-The AI layer supports three modes:
-
+- `gemini`
 - `groq`
 - `openai`
 - `rule-based`
 
-If no provider is configured, the app falls back to rule-based explanations when needed.
+If `LLM_PROVIDER` is not set, the code uses:
 
-Recommended Groq setup:
+1. Gemini if `GEMINI_API_KEY` exists
+2. Groq if `GROQ_API_KEY` exists
+3. OpenAI if `OPENAI_API_KEY` exists
+4. Rule-based explanations otherwise
+
+Install Gemini SDK:
+
+```bash
+pip install google-genai
+```
+
+Gemini setup in Windows PowerShell:
+
+```powershell
+$env:LLM_PROVIDER="gemini"
+$env:GEMINI_API_KEY="your_gemini_api_key_here"
+$env:GEMINI_MODEL="gemini-2.5-flash"
+```
+
+Gemini setup in macOS / Linux:
+
+```bash
+export LLM_PROVIDER="gemini"
+export GEMINI_API_KEY="your_gemini_api_key_here"
+export GEMINI_MODEL="gemini-2.5-flash"
+```
+
+Optional Groq setup:
 
 ```powershell
 $env:LLM_PROVIDER="groq"
@@ -197,7 +175,15 @@ $env:GROQ_API_KEY="your_groq_api_key_here"
 $env:GROQ_MODEL="llama-3.3-70b-versatile"
 ```
 
-Optional OpenAI setup:
+Optional Groq setup in macOS / Linux:
+
+```bash
+export LLM_PROVIDER="groq"
+export GROQ_API_KEY="your_groq_api_key_here"
+export GROQ_MODEL="llama-3.3-70b-versatile"
+```
+
+Optional OpenAI fallback:
 
 ```powershell
 $env:LLM_PROVIDER="openai"
@@ -205,38 +191,25 @@ $env:OPENAI_API_KEY="your_openai_api_key_here"
 $env:OPENAI_MODEL="gpt-4.1-mini"
 ```
 
-### 9. Run the Streamlit UI
+## Running the project
 
-Start the app from the project root while the virtual environment is still active:
+### Streamlit UI
 
-```powershell
-streamlit run frontend\app.py
+```bash
+streamlit run frontend/app.py
 ```
 
-If `streamlit` is not found, use:
+The UI provides:
 
-```powershell
-python -m streamlit run frontend\app.py
-```
+- Contract upload or pasted source input
+- One-click loading of included sample contracts
+- Cleaner report-style finding cards
+- Severity breakdown summary
+- Download buttons for JSON, HTML, and PDF
 
-### 10. Use the app
+### FastAPI backend
 
-1. Open the local Streamlit URL shown in the terminal.
-2. Enter a contract label if you want.
-3. Upload a `.sol` file or paste Solidity code.
-4. Click `Analyze Contract`.
-5. Review the findings and download JSON, HTML, or PDF if needed.
-
-For a quick test, upload:
-
-- `samples\reentrancy_vulnerable.sol`
-- `samples\safe_vault.sol`
-
-## FastAPI backend run steps
-
-If you want to run the API directly instead of the Streamlit UI:
-
-```powershell
+```bash
 uvicorn backend.main:app --reload
 ```
 
@@ -250,155 +223,114 @@ Available endpoints:
 
 - `GET /health`
 - `POST /analyze/text`
-- `POST /analyze/file`
+- `POST /analyze/file` if `python-multipart` is installed
 
-If `/analyze/file` support is missing, install:
+If you want `/analyze/file` support:
 
-```powershell
-python -m pip install python-multipart
+```bash
+pip install python-multipart
 ```
 
-### Example API call
+### Example API request
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/analyze/text" \
   -H "Content-Type: application/json" \
-  -d "{\"contract_name\":\"Demo\",\"source_code\":\"pragma solidity ^0.8.20; contract Demo { }\"}"
+  -d "{\"contract_name\":\"Demo\",\"source_code\":\"pragma solidity ^0.8.20; contract Demo { uint256 public value; }\"}"
 ```
 
 ## Sample contracts included
 
-The `samples/` directory contains test contracts for the demo:
+### Vulnerable examples
 
 - `reentrancy_vulnerable.sol`
 - `access_control_vulnerable.sol`
-- `integer_overflow_legacy.sol`
+- `tx_origin_vulnerable.sol`
+- `timestamp_lottery_vulnerable.sol`
+- `selfdestruct_vulnerable.sol`
+
+### Safer comparison examples
+
 - `safe_vault.sol`
-- `sample_report.json`
+- `safe_access_vault.sol`
+- `safe_time_lock.sol`
 
-These cover the main project cases: vulnerable contracts and a safer comparison contract.
+### Extra legacy sample
 
-## Example finding format
+- `integer_overflow_legacy.sol`
+
+Note:
+This legacy sample uses an older compiler range and may require matching compiler support on your machine.
+
+## Example output shape
 
 ```json
 {
-  "vulnerability": "reentrancy-eth",
+  "vulnerability": "Reentrancy",
   "severity": "High",
-  "location": "reentrancy_vulnerable.sol:12 (withdraw)",
-  "description": "External call before state update",
-  "simple_explanation": "This function can be entered again before internal state is updated.",
+  "category": "State management",
+  "location": "reentrancy_vulnerable.sol:11 (withdraw)",
+  "description": "Reentrancy in ReentrancyVulnerable.withdraw(uint256)",
+  "simple_explanation": "This function makes an external call before it finishes updating internal state.",
   "exploit_scenario": [
-    "Attacker deposits funds.",
-    "Attacker calls withdraw().",
-    "The contract sends ETH before balance update.",
-    "The attacker re-enters and drains funds."
+    "The attacker becomes eligible to withdraw funds.",
+    "The vulnerable function sends ETH before reducing the attacker's balance.",
+    "The attacker re-enters before state is updated."
   ],
-  "impact": "Loss of contract funds.",
-  "fix_recommendation": "Update state before external interaction and add a reentrancy guard."
+  "impact": "Contract funds can be drained.",
+  "fix_recommendation": "Apply Checks-Effects-Interactions and use a reentrancy guard."
 }
 ```
 
 ## Troubleshooting
 
-### `slither` is not recognized
-
-Your virtual environment is either not activated or `.venv\Scripts` is not on `PATH`.
-
-Run:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:Path = "$PWD\.venv\Scripts;$env:Path"
-slither --version
-```
-
-### `solc` is not recognized
-
-Install and select a compiler version:
-
-```powershell
-python -m pip install solc-select
-solc-select install 0.8.20
-solc-select use 0.8.20
-solc --version
-```
-
-### Slither says it could not find the Solidity compiler
-
-This usually means one of these:
-
-- `solc` is not installed
-- `solc` is installed but not on `PATH`
-- the contract pragma does not match the installed compiler version
-
-Checks:
-
-```powershell
-slither --version
-solc --version
-```
-
-If your contract uses `pragma solidity ^0.8.20;`, make sure `0.8.20` is installed and selected.
-
-### The app shows a compiler error after upload
-
-Check the uploaded contract first:
-
-- it should be valid Solidity source code
-- it should compile with the selected `solc` version
-- any imported files must also be available
-
 ### Streamlit says `No module named 'backend'`
 
-Run Streamlit from the project root:
+Run it from the project root:
 
-```powershell
-streamlit run frontend\app.py
+```bash
+streamlit run frontend/app.py
 ```
 
-### `python-multipart` is missing
+### FastAPI says `python-multipart` is missing
 
 Install it if you want `/analyze/file` support:
 
-```powershell
-python -m pip install python-multipart
+```bash
+pip install python-multipart
 ```
+
+### Slither fails to compile a contract
+
+Check:
+
+```bash
+slither --version
+solc --version
+```
+
+Common causes:
+
+- Solidity compiler not installed
+- Contract pragma not matching available compiler version
+- Missing imports in a multi-file contract
+
+### Pasted JSON does not analyze
+
+The analyzer expects Solidity source code, not example report JSON.
 
 ## Suggested demo flow
 
-1. Activate `.venv`.
-2. Add `.venv\Scripts` to `PATH`.
-3. Confirm `slither --version` and `solc --version` both work.
-4. Start the Streamlit app.
-5. Upload `samples\reentrancy_vulnerable.sol`.
-6. Show the detected issue and explanation.
-7. Export the report as JSON or HTML.
-8. Repeat with `samples\safe_vault.sol` to compare output.
-
-## macOS / Linux note
-
-If you are not on Windows, the flow is the same but activation changes:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install slither-analyzer solc-select
-```
-
-Run commands from the project root after activation.
+1. Start the Streamlit app.
+2. Set `LLM_PROVIDER=gemini` and `GEMINI_API_KEY`.
+3. Upload `samples/reentrancy_vulnerable.sol`.
+4. Show the severity summary and readable finding card.
+5. Compare it with `samples/safe_vault.sol`.
+6. Export the report as HTML or PDF.
 
 ## Important limitations
 
 - Static analyzers do not prove exploitability.
-- Real smart contract audits still need human review.
-- Some contracts require a matching Solidity compiler version on the machine.
-- AI-generated explanations improve readability, but they should still be verified.
-
-## Future improvements
-
-- Multi-file contract project support
-- Stronger code snippet extraction around vulnerable lines
-- Better report styling for PDF exports
-- Report history and persistence
-- Severity score aggregation across analyzers
+- The app filters low-value informational noise, so not every analyzer message is shown in the main report.
+- Real smart contract audits still require human review.
+- AI-generated explanations improve readability, but they still need validation.

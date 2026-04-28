@@ -15,8 +15,10 @@ class VulnerabilityFinding(BaseModel):
     vulnerability: str
     severity: str = "Medium"
     confidence: str = "Medium"
+    category: str = "General"
     location: str = "Unknown"
     function: str | None = None
+    line_number: int | None = None
     description: str
     detector: str
     code_snippet: str | None = None
@@ -38,4 +40,5 @@ class AnalysisReport(BaseModel):
     finding_count: int
     findings: list[ExplainedFinding]
     summary: str
+    severity_breakdown: dict[str, int] = Field(default_factory=dict)
     tool_status: dict[str, str] = Field(default_factory=dict)
