@@ -12,7 +12,7 @@ The project is built for a blockchain and cyber security demo. Its value is not 
 - Filters low-signal analyzer noise from the main report
 - Normalizes findings into readable categories and severities
 - Extracts relevant code snippets around flagged lines
-- Explains findings using Gemini, Groq, OpenAI, or built-in rule-based logic
+- Explains findings using Gemini or Groq, with a built-in fallback when no API provider is configured
 - Generates JSON, HTML, and PDF reports
 - Provides a Streamlit UI and a FastAPI backend
 
@@ -61,7 +61,7 @@ project/
           [Parser]
             |
             v
- [Gemini / Groq / OpenAI / Rules]
+ [Gemini / Groq]
             |
             v
    [JSON / HTML / PDF Report]
@@ -129,21 +129,18 @@ pip install mythril
 myth version
 ```
 
-### 7. Configure Gemini, Groq, or OpenAI
+### 7. Configure Gemini or Groq
 
 Supported modes:
 
 - `gemini`
 - `groq`
-- `openai`
-- `rule-based`
 
 If `LLM_PROVIDER` is not set, the code uses:
 
 1. Gemini if `GEMINI_API_KEY` exists
 2. Groq if `GROQ_API_KEY` exists
-3. OpenAI if `OPENAI_API_KEY` exists
-4. Rule-based explanations otherwise
+3. Rule-based explanations otherwise
 
 Install Gemini SDK:
 
@@ -183,14 +180,6 @@ export GROQ_API_KEY="your_groq_api_key_here"
 export GROQ_MODEL="llama-3.3-70b-versatile"
 ```
 
-Optional OpenAI fallback:
-
-```powershell
-$env:LLM_PROVIDER="openai"
-$env:OPENAI_API_KEY="your_openai_api_key_here"
-$env:OPENAI_MODEL="gpt-4.1-mini"
-```
-
 ## Running the project
 
 ### Streamlit UI
@@ -202,7 +191,9 @@ streamlit run frontend/app.py
 The UI provides:
 
 - Contract upload or pasted source input
-- One-click loading of included sample contracts
+- One-click loading of built-in demo contracts
+- Preferred LLM selection between Gemini and Groq
+- Mythril fallback toggle with hover explanation
 - Cleaner report-style finding cards
 - Severity breakdown summary
 - Download buttons for JSON, HTML, and PDF
@@ -210,13 +201,13 @@ The UI provides:
 ### FastAPI backend
 
 ```bash
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --reload --port 8001
 ```
 
 Default local URL:
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8001
 ```
 
 Available endpoints:
@@ -234,7 +225,7 @@ pip install python-multipart
 ### Example API request
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/analyze/text" \
+curl -X POST "http://127.0.0.1:8001/analyze/text" \
   -H "Content-Type: application/json" \
   -d "{\"contract_name\":\"Demo\",\"source_code\":\"pragma solidity ^0.8.20; contract Demo { uint256 public value; }\"}"
 ```
@@ -314,6 +305,14 @@ Common causes:
 - Solidity compiler not installed
 - Contract pragma not matching available compiler version
 - Missing imports in a multi-file contract
+
+### Mythril fallback behavior
+
+The `Use Mythril fallback` option runs a second scan pass after Slither using Mythril.
+
+- It is helpful when you want an extra analysis pass from a different engine.
+- It can increase scan time.
+- It may add extra findings that need manual review because they can be noisier than Slither output.
 
 ### Pasted JSON does not analyze
 
