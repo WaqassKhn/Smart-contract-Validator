@@ -3,7 +3,6 @@ uvicorn>=0.30.0
 streamlit>=1.39.0
 pydantic>=2.8.0
 google-genai
-openai>=1.51.0
 groq
 reportlab>=4.2.0
 python-multipart>=0.0.9

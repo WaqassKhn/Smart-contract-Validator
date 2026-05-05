@@ -242,25 +242,6 @@ def _groq_response(finding: VulnerabilityFinding) -> ExplainedFinding:
     return _to_explained_finding(finding, _extract_json_payload(content))
 
 
-def _openai_response(finding: VulnerabilityFinding) -> ExplainedFinding:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return _rule_based_response(finding)
-
-    try:
-        from openai import OpenAI
-    except ImportError:
-        return _rule_based_response(finding)
-
-    client = OpenAI(api_key=api_key)
-    response = client.responses.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-        input=_build_prompt(finding),
-    )
-    content = response.output_text
-    return _to_explained_finding(finding, _extract_json_payload(content))
-
-
 def _provider_response(finding: VulnerabilityFinding) -> ExplainedFinding:
     provider = os.getenv("LLM_PROVIDER", "auto").lower()
 
@@ -268,8 +249,6 @@ def _provider_response(finding: VulnerabilityFinding) -> ExplainedFinding:
         return _gemini_response(finding)
     if provider == "groq":
         return _groq_response(finding)
-    if provider == "openai":
-        return _openai_response(finding)
     if provider == "rule-based":
         return _rule_based_response(finding)
 
@@ -277,8 +256,6 @@ def _provider_response(finding: VulnerabilityFinding) -> ExplainedFinding:
         return _gemini_response(finding)
     if os.getenv("GROQ_API_KEY"):
         return _groq_response(finding)
-    if os.getenv("OPENAI_API_KEY"):
-        return _openai_response(finding)
     return _rule_based_response(finding)
 
 

@@ -21,21 +21,21 @@ SEVERITY_COLORS = {
     "Low": "#1e4fa1",
 }
 
-SAMPLE_LABELS = [
-    "samples/reentrancy_vulnerable.sol",
-    "samples/access_control_vulnerable.sol",
-    "samples/tx_origin_vulnerable.sol",
-    "samples/timestamp_lottery_vulnerable.sol",
-    "samples/selfdestruct_vulnerable.sol",
-    "samples/safe_vault.sol",
-    "samples/safe_access_vault.sol",
-    "samples/safe_time_lock.sol",
-]
+SAMPLE_OPTIONS = {
+    "Reentrancy Demo": "samples/reentrancy_vulnerable.sol",
+    "Access Control Demo": "samples/access_control_vulnerable.sol",
+    "tx.origin Demo": "samples/tx_origin_vulnerable.sol",
+    "Timestamp Dependence Demo": "samples/timestamp_lottery_vulnerable.sol",
+    "Selfdestruct Demo": "samples/selfdestruct_vulnerable.sol",
+    "Safe Vault Demo": "samples/safe_vault.sol",
+    "Safe Access Vault Demo": "samples/safe_access_vault.sol",
+    "Safe Time Lock Demo": "samples/safe_time_lock.sol",
+}
 
 if "source_code_input" not in st.session_state:
     st.session_state.source_code_input = ""
-if "contract_name_input" not in st.session_state:
-    st.session_state.contract_name_input = "UploadedContract"
+if "selected_contract_name" not in st.session_state:
+    st.session_state.selected_contract_name = "PastedContract"
 
 
 st.set_page_config(page_title="AI Smart Contract Risk Explainer", layout="wide")
@@ -89,7 +89,7 @@ st.markdown(
     """
     <section class="hero">
         <h1>AI Smart Contract Risk Explainer</h1>
-        <p>Upload or paste a Solidity contract, run static analysis, and get a readable security report with severity, exploit path, impact, and remediation powered by Gemini or other supported providers.</p>
+        <p>Upload or paste a Solidity contract, run static analysis, and get a readable security report with severity, exploit path, impact, and remediation powered by Gemini or Groq.</p>
     </section>
     """,
     unsafe_allow_html=True,
@@ -146,61 +146,58 @@ def render_summary(report) -> None:
 
 
 def load_sample_into_editor(sample_label: str) -> None:
-    sample_path = PROJECT_ROOT / sample_label
+    sample_path = PROJECT_ROOT / SAMPLE_OPTIONS[sample_label]
     st.session_state.source_code_input = sample_path.read_text(encoding="utf-8")
-    st.session_state.contract_name_input = Path(sample_label).stem
+    st.session_state.selected_contract_name = Path(sample_path).stem
 
 
 with st.sidebar:
     st.header("Run Options")
-    contract_name = st.text_input("Contract label", key="contract_name_input")
-    use_mythril = st.checkbox("Use Mythril fallback", value=False)
+    llm_provider = st.selectbox("Preferred LLM", ["gemini", "groq"], index=0)
+    use_mythril = st.checkbox(
+        "Use Mythril fallback",
+        value=False,
+        help="Runs Mythril after Slither as an extra scan pass. This can catch some issues through a different analysis approach, but it may take longer and can produce additional noise.",
+    )
     st.caption("High-signal Slither findings are prioritized. Informational-only detector noise is filtered from the main report.")
     st.markdown(
         """
         **LLM Providers**
 
-        - Preferred: `GEMINI_API_KEY`
-        - Optional: `GROQ_API_KEY`
-        - Optional: `OPENAI_API_KEY`
-        - Override: `LLM_PROVIDER=gemini|groq|openai|rule-based`
+        - Select Gemini or Groq here
+        - Provide the matching API key in your environment
+        - Gemini uses `GEMINI_API_KEY`
+        - Groq uses `GROQ_API_KEY`
         """
     )
-    selected_sample = st.selectbox("Load sample into editor", SAMPLE_LABELS)
+    selected_sample = st.selectbox("Load sample into editor", list(SAMPLE_OPTIONS))
     st.button(
         "Load Sample",
         use_container_width=True,
         on_click=load_sample_into_editor,
         args=(selected_sample,),
     )
-    st.markdown("**Available samples**")
-    for sample_label in SAMPLE_LABELS:
-        st.write(f"- `{sample_label}`")
+    st.caption("Built-in demo contracts are available from the selector above.")
 
-input_tab, sample_tab = st.tabs(["Analyze Contract", "Included Samples"])
+uploaded_file = st.file_uploader("Upload Solidity file", type=["sol"])
+source_code = st.text_area(
+    "Or paste Solidity code",
+    height=320,
+    key="source_code_input",
+    placeholder="pragma solidity ^0.8.20;\n\ncontract Demo {\n    uint256 public value;\n}\n",
+)
 
-with input_tab:
-    uploaded_file = st.file_uploader("Upload Solidity file", type=["sol"])
-    source_code = st.text_area(
-        "Or paste Solidity code",
-        height=320,
-        key="source_code_input",
-        placeholder="pragma solidity ^0.8.20;\n\ncontract Demo {\n    uint256 public value;\n}\n",
-    )
-
-    analyze_clicked = st.button("Analyze Contract", type="primary")
-
-with sample_tab:
-    st.write("The repository includes vulnerable and safe demo contracts for repeatable testing.")
-    for sample_label in SAMPLE_LABELS:
-        st.write(f"- `{sample_label}`")
+analyze_clicked = st.button("Analyze Contract", type="primary")
 
 if analyze_clicked:
+    import os
+
     file_contents = None
     filename = None
     if uploaded_file is not None:
         file_contents = uploaded_file.getvalue().decode("utf-8")
         filename = uploaded_file.name
+        st.session_state.selected_contract_name = Path(filename).stem
 
     contract_source = file_contents or source_code
     if not contract_source.strip():
@@ -208,6 +205,8 @@ if analyze_clicked:
     else:
         try:
             with st.spinner("Running analysis and preparing the report..."):
+                os.environ["LLM_PROVIDER"] = llm_provider
+                contract_name = st.session_state.selected_contract_name or "PastedContract"
                 report = analyze_contract(
                     AnalysisTarget(
                         contract_name=contract_name,
